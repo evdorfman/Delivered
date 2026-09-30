@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Delivered</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one working column — setup fields, drop zone, then an editable log table with a copy bar. */
+:root {
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --ink: #17212b;
+  --muted: #5a6776;
+  --line: #d6dce3;
+  --accent: #0a7466;
+  --accent-ink: #ffffff;
+  --accent-soft: #dcefeb;
+  --warn: #9a5b00;
+  --warn-soft: #fbeed8;
+  --bad: #b3261e;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161b; --surface: #192027; --ink: #e4e9ee; --muted: #93a0ae; --line: #2c3640;
+    --accent: #43c2ad; --accent-ink: #06201c; --accent-soft: #173a35;
+    --warn: #f0b458; --warn-soft: #3a2c14; --bad: #f2877e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161b; --surface: #192027; --ink: #e4e9ee; --muted: #93a0ae; --line: #2c3640;
+  --accent: #43c2ad; --accent-ink: #06201c; --accent-soft: #173a35;
+  --warn: #f0b458; --warn-soft: #3a2c14; --bad: #f2877e;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font-sans); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: max(16px, 3vw); padding-block: 28px 64px; display: grid; gap: 22px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
+h1 { margin: 0; font-size: 1.6rem; font-weight: 600; letter-spacing: -0.01em; }
+h1 span { color: var(--accent); }
+header p { margin: 0; color: var(--muted); max-width: 62ch; }
+.label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+.setup { display: grid; align-items: start; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 18px; }
+.field { display: grid; gap: 5px; min-width: 0; }
+.field input, .field select {
+  font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px 10px; width: 100%;
+}
+.field input:focus-visible, .field select:focus-visible, button:focus-visible, td[contenteditable]:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+.hint { font-size: 0.8rem; color: var(--muted); }
+
+.drop {
+  border: 1.5px dashed var(--line); border-radius: 10px; background: var(--surface);
+  padding: 26px 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
+  transition: border-color .15s, background .15s;
+}
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop strong { display: block; font-size: 1.05rem; font-weight: 600; }
+.drop .hint { margin-top: 2px; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+button {
+  font: inherit; font-weight: 500; border-radius: 6px; padding: 8px 14px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
+button:hover { border-color: var(--muted); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+button.primary:hover { filter: brightness(1.07); }
+button.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+button.quiet:hover { color: var(--ink); }
+
+.cols { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; padding: 4px 10px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--surface); cursor: pointer; user-select: none;
+}
+.chip input { accent-color: var(--accent); margin: 0; }
+.chip:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+
+.log { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.log-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.count { font-weight: 600; }
+.example-note { display: inline-block; margin-left: 8px; font-size: 0.78rem; font-weight: 500; color: var(--warn); background: var(--warn-soft); padding: 2px 8px; border-radius: 4px; }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
+th { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--bg); position: sticky; top: 0; }
+td.mono { font-family: var(--font-mono); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+td.wrapcell { white-space: normal; min-width: 200px; max-width: 360px; overflow-wrap: anywhere; }
+td[contenteditable] { cursor: text; }
+td[contenteditable]:hover { background: var(--bg); }
+td.edited { box-shadow: inset 2px 0 0 var(--accent); }
+td.empty::before { content: attr(data-ph); color: var(--muted); font-style: italic; }
+tr:last-child td { border-bottom: 0; }
+tr.is-example td { color: var(--muted); }
+.status { width: 10px; padding-right: 0; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 6px; }
+.dot.reading { background: var(--muted); animation: pulse 1s infinite; }
+.dot.partial { background: var(--warn); }
+.dot.error { background: var(--bad); }
+@keyframes pulse { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .dot.reading { animation: none; } }
+td.x { width: 1%; }
+td.x button { padding: 0 6px; line-height: 1.4; }
+
+.copybar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.copybar .hint { flex: 1 1 260px; }
+#fallback { width: 100%; min-height: 110px; font: 0.8rem/1.4 var(--font-mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+.toast {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 6px; font-weight: 500; font-size: 0.9rem;
+}
+details { color: var(--muted); font-size: 0.88rem; }
+details summary { cursor: pointer; }
+details ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; max-width: 80ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Delivered<span>.</span></h1>
+    <p>Add finished deliverables and get their details as rows you can paste into Smartsheet. Files are read on this computer and never uploaded.</p>
+  </header>
+
+  <section class="setup" aria-label="Setup">
+    <div class="field">
+      <label class="label" for="project">Project name</label>
+      <input id="project" type="text" placeholder="Taken from the folder name if blank">
+    </div>
+    <div class="field">
+      <label class="label" for="basePath">Path of the folder you add from</label>
+      <input id="basePath" type="text" placeholder="/Volumes/Projects/Project X/Deliverables" spellcheck="false">
+      <span class="hint">Browsers can't see full file paths. Mac: right-click the folder, hold Option, choose "Copy … as Pathname". Windows: Shift + right-click, "Copy as path".</span>
+    </div>
+    <div class="field">
+      <label class="label" for="durFmt">Length format</label>
+      <select id="durFmt">
+        <option value="hms">HH:MM:SS</option>
+        <option value="ms">MM:SS</option>
+        <option value="tc">Timecode HH:MM:SS:FF</option>
+        <option value="sec">Seconds</option>
+      </select>
+    </div>
+  </section>
+
+  <section class="drop" id="drop" aria-label="Add videos">
+    <div>
+      <strong>Drop video files or a folder here</strong>
+      <div class="hint">MOV, MP4 and M4V are read in full, including ProRes. Other formats get whatever the browser can read.</div>
+    </div>
+    <div class="btns">
+      <button class="primary" id="pickFiles" type="button">Choose files</button>
+      <button id="pickFolder" type="button">Choose folder</button>
+    </div>
+    <input id="fileInput" type="file" multiple accept="video/*,.mov,.mp4,.m4v,.mxf,.mkv,.avi,.mts,.m2ts,.webm" hidden>
+    <input id="folderInput" type="file" webkitdirectory multiple hidden>
+  </section>
+
+  <div class="cols" id="cols" aria-label="Columns to copy"><span class="label">Columns</span></div>
+
+  <section class="log" aria-label="Deliverables">
+    <div class="log-head">
+      <div><span class="count" id="count"></span><span class="example-note" id="exampleNote">Example rows. Add your files to replace them.</span></div>
+      <button class="quiet" id="clear" type="button">Clear all</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="copybar">
+      <button class="primary" id="copyRows" type="button">Copy rows</button>
+      <button id="copyHeaders" type="button">Copy with headers</button>
+      <span class="hint">In Smartsheet, click the first empty cell in the first column, then paste. Click any cell above to fix it before copying.</span>
+      <textarea id="fallback" readonly hidden aria-label="Copied text"></textarea>
+    </div>
+  </section>
+
+  <details>
+    <summary>How each field is found</summary>
+    <ul>
+      <li><b>Project name</b>: what you type above, or else the name of the folder you added.</li>
+      <li><b>File location</b>: the path you paste above plus any subfolders inside it.</li>
+      <li><b>Length, resolution, frame rate, codec</b>: read from the file's header, so large files load instantly.</li>
+      <li><b>Aspect ratio</b>: the display size, corrected for rotated phone footage and anamorphic pixels, matched to the nearest standard ratio (16:9, 9:16, 1:1, 4:5, 2.39:1…).</li>
+      <li>A yellow dot means some details couldn't be read. A red dot means the file couldn't be read. You can type the missing values in.</li>
+    </ul>
+  </details>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const VIDEO_EXT = /\.(mov|mp4|m4v|mxf|mkv|avi|mts|m2ts|webm|wmv|mpg|mpeg|3gp)$/i;
+  const COLS = [
+    { key: 'project', label: 'Project name', on: true, wrap: true },
+    { key: 'fileName', label: 'File name', on: true, wrap: true },
+    { key: 'location', label: 'File location', on: true, wrap: true, ph: 'add folder path' },
+    { key: 'duration', label: 'Length', on: true, mono: true },
+    { key: 'aspect', label: 'Aspect ratio', on: true, mono: true },
+    { key: 'orientation', label: 'Orientation', on: false },
+    { key: 'resolution', label: 'Resolution', on: false, mono: true },
+    { key: 'fps', label: 'Frame rate', on: false, mono: true },
+    { key: 'codec', label: 'Codec', on: false },
+    { key: 'size', label: 'File size', on: false, mono: true },
+    { key: 'modified', label: 'Date modified', on: false, mono: true },
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get(k) { try { return localStorage.getItem('delivered.' + k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem('delivered.' + k, v); } catch {} },
+  };
+
+  const settings = { project: '', basePath: store.get('basePath') || '', durFmt: store.get('durFmt') || 'hms' };
+  try { const saved = JSON.parse(store.get('cols') || 'null'); if (saved) COLS.forEach(c => { if (c.key in saved) c.on = saved[c.key]; }); } catch {}
+
+  let rows = [];
+  let nextId = 1;
+
+  // ---------- MP4 / QuickTime header parsing ----------
+  const fourcc = (dv, o) => String.fromCharCode(dv.getUint8(o), dv.getUint8(o + 1), dv.getUint8(o + 2), dv.getUint8(o + 3));
+  const readDV = async (file, start, len) => new DataView(await file.slice(start, start + len).arrayBuffer());
+  const TOP_TYPES = new Set(['ftyp', 'moov', 'mdat', 'free', 'skip', 'wide', 'pnot', 'uuid', 'meta', 'moof', 'mfra', 'styp', 'sidx', 'pdin']);
+
+  async function findMoov(file) {
+    let off = 0;
+    for (let i = 0; i < 5000 && off + 8 <= file.size; i++) {
+      const h = await readDV(file, off, Math.min(16, file.size - off));
+      let size = h.getUint32(0), hdr = 8;
+      const type = fourcc(h, 4);
+      if (i === 0 && !TOP_TYPES.has(type)) return null;
+      if (size === 1) { if (h.byteLength < 16) return null; size = Number(h.getBigUint64(8)); hdr = 16; }
+      else if (size === 0) size = file.size - off;
+      if (size < hdr) return null;
+      if (type === 'moov') {
+        if (size > 256 * 1024 * 1024) return null;
+        return new DataView(await file.slice(off + hdr, off + size).arrayBuffer());
+      }
+      off += size;
+    }
+    return null;
+  }
+
+  function* boxes(dv, s, e) {
+    let o = s;
+    while (o + 8 <= e) {
+      let size = dv.getUint32(o), h = 8;
+      const type = fourcc(dv, o + 4);
+      if (size === 1) { size = Number(dv.getBigUint64(o + 8)); h = 16; }
+      else if (size === 0) size = e - o;
+      if (size < h || o + size > e) return;
+      yield { type, s: o + h, e: o + size };
+      o += size;
+    }
+  }
+  const child = (dv, box, type) => { if (!box) return null; for (const b of boxes(dv, box.s, box.e)) if (b.type === type) return b; return null; };
+  const children = (dv, box, type) => [...boxes(dv, box.s, box.e)].filter(b => b.type === type);
+
+  function parseMoov(dv) {
+    const root = { s: 0, e: dv.byteLength };
+    const out = {};
+    const mvhd = child(dv, root, 'mvhd');
+    if (mvhd) {
+      const v1 = dv.getUint8(mvhd.s) === 1;
+      const ts = dv.getUint32(mvhd.s + (v1 ? 20 : 12));
+      const d = v1 ? Number(dv.getBigUint64(mvhd.s + 24)) : dv.getUint32(mvhd.s + 16);
+      if (ts && d) out.duration = d / ts;
+    }
+    for (const trak of children(dv, root, 'trak')) {
+      const mdia = child(dv, trak, 'mdia');
+      const hdlr = child(dv, mdia, 'hdlr');
+      if (!hdlr || fourcc(dv, hdlr.s + 8) !== 'vide') continue;
+
+      const tkhd = child(dv, trak, 'tkhd');
+      let rot = 0, tw = 0, th = 0;
+      if (tkhd) {
+        const m = tkhd.s + 4 + (dv.getUint8(tkhd.s) === 1 ? 32 : 20) + 16;
+        const a = dv.getInt32(m) / 65536, b = dv.getInt32(m + 4) / 65536;
+        rot = ((Math.round(Math.atan2(b, a) * 180 / Math.PI) % 360) + 360) % 360;
+        tw = dv.getUint32(m + 36) / 65536; th = dv.getUint32(m + 40) / 65536;
+      }
+
+      let mts = 0, mdur = 0;
+      const mdhd = child(dv, mdia, 'mdhd');
+      if (mdhd) {
+        const v1 = dv.getUint8(mdhd.s) === 1;
+        mts = dv.getUint32(mdhd.s + (v1 ? 20 : 12));
+        mdur = v1 ? Number(dv.getBigUint64(mdhd.s + 24)) : dv.getUint32(mdhd.s + 16);
+      }
+
+      const stbl = child(dv, child(dv, mdia, 'minf'), 'stbl');
+      const stsd = child(dv, stbl, 'stsd');
+      let cw = 0, ch = 0, hs = 1, vs = 1;
+      if (stsd && stsd.e - stsd.s > 16 + 86) {
+        const en = stsd.s + 8, enEnd = Math.min(en + dv.getUint32(en), stsd.e);
+        const code = fourcc(dv, en + 4);
+        cw = dv.getUint16(en + 32); ch = dv.getUint16(en + 34);
+        const nameLen = Math.min(dv.getUint8(en + 50), 31);
+        let name = '';
+        for (let i = 0; i < nameLen; i++) name += String.fromCharCode(dv.getUint8(en + 51 + i));
+        out.codec = cleanCodec(name, code);
+        for (const b of boxes(dv, en + 86, enEnd)) {
+          if (b.type === 'pasp' && b.e - b.s >= 8) { hs = dv.getUint32(b.s) || 1; vs = dv.getUint32(b.s + 4) || 1; }
+        }
+      }
+      const stts = child(dv, stbl, 'stts');
+      if (stts && mts && mdur) {
+        const n = dv.getUint32(stts.s + 4);
+        let samples = 0;
+        for (let i = 0; i < n && stts.s + 8 + i * 8 + 8 <= stts.e; i++) samples += dv.getUint32(stts.s + 8 + i * 8);
+        if (samples > 1) out.fps = samples / (mdur / mts);
+      }
+      if (!out.duration && mts && mdur) out.duration = mdur / mts;
+
+      let dw = tw, dh = th;
+      if (!(dw && dh) && cw && ch) { dw = cw * hs / vs; dh = ch; }
+      if (rot === 90 || rot === 270) [dw, dh] = [dh, dw];
+      if (cw && ch) out.resolution = (rot === 90 || rot === 270) ? `${ch}×${cw}` : `${cw}×${ch}`;
+      else if (dw && dh) out.resolution = `${Math.round(dw)}×${Math.round(dh)}`;
+      if (dw && dh) { out.dw = dw; out.dh = dh; }
+      break;
+    }
+    return out;
+  }
+
+  const CODECS = {
+    avc1: 'H.264', avc3: 'H.264', hvc1: 'HEVC (H.265)', hev1: 'HEVC (H.265)', dvh1: 'HEVC (Dolby Vision)', dvhe: 'HEVC (Dolby Vision)',
+    apch: 'Apple ProRes 422 HQ', apcn: 'Apple ProRes 422', apcs: 'Apple ProRes 422 LT', apco: 'Apple ProRes 422 Proxy',
+    ap4h: 'Apple ProRes 4444', ap4x: 'Apple ProRes 4444 XQ', aprh: 'Apple ProRes RAW HQ', aprn: 'Apple ProRes RAW',
+    av01: 'AV1', vp09: 'VP9', mp4v: 'MPEG-4', jpeg: 'Motion JPEG', AVdn: 'DNxHD', AVdh: 'DNxHR', 'dvc ': 'DV', dvcp: 'DV',
+  };
+  function cleanCodec(name, code) {
+    if (CODECS[code]) return CODECS[code];
+    const n = name.replace(/[^\x20-\x7e]/g, '').trim();
+    return n.length > 2 && !/^Lavc/.test(n) ? n : code.trim();
+  }
+
+  function browserProbe(file) {
+    return new Promise((resolve) => {
+      const v = document.createElement('video');
+      const url = URL.createObjectURL(file);
+      const done = (r) => { clearTimeout(t); URL.revokeObjectURL(url); v.removeAttribute('src'); resolve(r); };
+      const t = setTimeout(() => done({}), 10000);
+      v.preload = 'metadata'; v.muted = true;
+      v.onloadedmetadata = () => {
+        const r = {};
+        if (isFinite(v.duration) && v.duration > 0) r.duration = v.duration;
+        if (v.videoWidth && v.videoHeight) { r.dw = v.videoWidth; r.dh = v.videoHeight; r.resolution = `${v.videoWidth}×${v.videoHeight}`; }
+        done(r);
+      };
+      v.onerror = () => done({});
+      v.src = url;
+    });
+  }
+
+  async function probe(file) {
+    let info = {};
+    if (/\.(mov|mp4|m4v|3gp)$/i.test(file.name) || /mp4|quicktime/.test(file.type)) {
+      try { const moov = await findMoov(file); if (moov) info = parseMoov(moov); } catch (e) { console.warn(file.name, e); }
+    }
+    if (!info.duration || !info.dw) {
+      const b = await browserProbe(file);
+      info = { ...b, ...Object.fromEntries(Object.entries(info).filter(([, v]) => v)) };
+    }
+    return info;
+  }
+
+  // ---------- Formatting ----------
+  const RATIOS = [
+    [16 / 9, '16:9'], [9 / 16, '9:16'], [1, '1:1'], [4 / 5, '4:5'], [5 / 4, '5:4'], [4 / 3, '4:3'], [3 / 4, '3:4'],
+    [2 / 3, '2:3'], [3 / 2, '3:2'], [2, '2:1'], [1 / 2, '1:2'], [1.85, '1.85:1'], [2.35, '2.35:1'], [2.39, '2.39:1'],
+    [21 / 9, '21:9'], [256 / 135, '1.90:1 (DCI)'],
+  ];
+  function aspectLabel(w, h) {
+    if (!w || !h) return '';
+    const r = w / h;
+    let best = null, err = Infinity;
+    for (const [v, l] of RATIOS) { const e = Math.abs(r - v) / v; if (e < err) { err = e; best = l; } }
+    if (err < 0.012) return best;
+    return r >= 1 ? `${r.toFixed(2)}:1` : `1:${(1 / r).toFixed(2)}`;
+  }
+  function orientation(w, h) {
+    if (!w || !h) return '';
+    const r = w / h;
+    return Math.abs(r - 1) < 0.02 ? 'Square' : r > 1 ? 'Horizontal' : 'Vertical';
+  }
+  const STD_FPS = [23.976, 24, 25, 29.97, 30, 47.952, 48, 50, 59.94, 60, 119.88, 120];
+  function fpsLabel(f) {
+    if (!f) return '';
+    const s = STD_FPS.find(x => Math.abs(x - f) < 0.015);
+    return String(s ?? Math.round(f * 1000) / 1000);
+  }
+  const pad = (n) => String(n).padStart(2, '0');
+  function durLabel(sec, fmt, fps) {
+    if (!sec && sec !== 0) return '';
+    if (fmt === 'sec') return (Math.round(sec * 100) / 100).toString();
+    if (fmt === 'tc' && fps) {
+      const base = Math.round(fps), total = Math.round(sec * fps);
+      const f = total % base, s = Math.floor(total / base);
+      return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}:${pad(f)}`;
+    }
+    const s = Math.round(sec);
+    if (fmt === 'ms') return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+    return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
+  }
+  function sizeLabel(b) {
+    if (!b) return '';
+    const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0;
+    while (b >= 1000 && i < u.length - 1) { b /= 1000; i++; }
+    return `${b.toFixed(i >= 3 ? 2 : i ? 1 : 0)} ${u[i]}`;
+  }
+  const dateLabel = (ms) => { if (!ms) return ''; const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  function joinPath(base, rel) {
+    base = base.trim().replace(/^["']|["']$/g, '');
+    if (!rel) return base;
+    if (!base) return rel;
+    const sep = base.includes('\\') && !base.includes('/') ? '\\' : '/';
+    return base.replace(/[\\/]+$/, '') + sep + rel.split('/').join(sep);
+  }
+
+  function computed(row, key) {
+    const i = row.info || {};
+    switch (key) {
+      case 'project': return settings.project.trim() || row.autoProject || '';
+      case 'fileName': return row.name;
+      case 'location': return joinPath(settings.basePath, row.relDir);
+      case 'duration': return durLabel(i.duration, settings.durFmt, i.fps);
+      case 'aspect': return aspectLabel(i.dw, i.dh);
+      case 'orientation': return orientation(i.dw, i.dh);
+      case 'resolution': return i.resolution || '';
+      case 'fps': return fpsLabel(i.fps);
+      case 'codec': return i.codec || '';
+      case 'size': return sizeLabel(row.size);
+      case 'modified': return dateLabel(row.modified);
+    }
+    return '';
+  }
+  const value = (row, key) => (key in row.over ? row.over[key] : computed(row, key));
+
+  // ---------- Rendering ----------
+  function renderCols() {
+    const box = $('cols');
+    box.querySelectorAll('.chip').forEach(n => n.remove());
+    for (const c of COLS) {
+      const lab = document.createElement('label');
+      lab.className = 'chip';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.id = 'col-' + c.key; cb.checked = c.on;
+      cb.onchange = () => { c.on = cb.checked; store.set('cols', JSON.stringify(Object.fromEntries(COLS.map(x => [x.key, x.on])))); render(); };
+      lab.append(cb, document.createTextNode(c.label));
+      box.append(lab);
+    }
+  }
+
+  function render() {
+    const cols = COLS.filter(c => c.on);
+    const real = rows.filter(r => !r.example);
+    $('exampleNote').hidden = real.length > 0;
+    const n = rows.length;
+    $('count').textContent = `${n} deliverable${n === 1 ? '' : 's'}`;
+    $('thead').innerHTML = '';
+    const htr = document.createElement('tr');
+    htr.append(Object.assign(document.createElement('th'), { className: 'status' }));
+    for (const c of cols) htr.append(Object.assign(document.createElement('th'), { textContent: c.label }));
+    htr.append(document.createElement('th'));
+    $('thead').append(htr);
+
+    const tb = $('tbody');
+    tb.innerHTML = '';
+    for (const row of rows) {
+      const tr = document.createElement('tr');
+      if (row.example) tr.className = 'is-example';
+      const st = document.createElement('td');
+      st.className = 'status';
+      const dot = document.createElement('span');
+      dot.className = 'dot ' + row.status;
+      dot.title = { reading: 'Reading…', ok: 'Read', partial: 'Some details could not be read', error: 'Could not read this file' }[row.status];
+      st.append(dot); tr.append(st);
+      for (const c of cols) {
+        const td = document.createElement('td');
+        td.className = [c.mono && 'mono', c.wrap && 'wrapcell', c.key in row.over && 'edited'].filter(Boolean).join(' ');
+        td.contentEditable = 'plaintext-only';
+        if (td.contentEditable !== 'plaintext-only') td.contentEditable = 'true';
+        td.spellcheck = false;
+        const v = value(row, c.key);
+        td.textContent = v;
+        td.dataset.ph = c.ph || '—';
+        td.classList.toggle('empty', !v);
+        td.oninput = () => { row.over[c.key] = td.textContent.trim(); td.classList.add('edited'); td.classList.toggle('empty', !td.textContent); };
+        td.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); td.blur(); } };
+        tr.append(td);
+      }
+      const x = document.createElement('td');
+      x.className = 'x';
+      const del = Object.assign(document.createElement('button'), { className: 'quiet', type: 'button', textContent: '×', title: 'Remove row' });
+      del.setAttribute('aria-label', 'Remove ' + row.name);
+      del.onclick = () => { rows = rows.filter(r => r !== row); render(); };
+      x.append(del); tr.append(x);
+      tb.append(tr);
+    }
+  }
+
+  // ---------- Adding files ----------
+  async function addFiles(list) {
+    const vids = list.filter(({ file }) => VIDEO_EXT.test(file.name) || (file.type || '').startsWith('video/'));
+    if (!vids.length) { toast('No video files found'); return; }
+    rows = rows.filter(r => !r.example);
+    const fresh = [];
+    for (const { file, path } of vids) {
+      const parts = (path || '').split('/').filter(Boolean);
+      const top = parts.length > 1 ? parts[0] : '';
+      const relDir = parts.length > 2 ? parts.slice(1, -1).join('/') : '';
+      if (rows.some(r => r.name === file.name && r.size === file.size && r.relDir === relDir)) continue;
+      const row = { id: nextId++, name: file.name, size: file.size, modified: file.lastModified, relDir, autoProject: top, over: {}, status: 'reading', info: {} };
+      rows.push(row); fresh.push([row, file]);
+    }
+    render();
+    for (const [row, file] of fresh) {
+      try {
+        row.info = await probe(file);
+        row.status = row.info.duration && row.info.dw ? 'ok' : (row.info.duration || row.info.dw) ? 'partial' : 'error';
+      } catch (e) { console.warn(e); row.status = 'error'; }
+      render();
+    }
+    toast(`Added ${fresh.length} file${fresh.length === 1 ? '' : 's'}`);
+  }
+
+  $('pickFiles').onclick = () => $('fileInput').click();
+  $('pickFolder').onclick = () => $('folderInput').click();
+  $('fileInput').onchange = (e) => { addFiles([...e.target.files].map(f => ({ file: f, path: '' }))); e.target.value = ''; };
+  $('folderInput').onchange = (e) => { addFiles([...e.target.files].map(f => ({ file: f, path: f.webkitRelativePath }))); e.target.value = ''; };
+
+  async function walk(entry, out) {
+    if (entry.isFile) {
+      await new Promise(res => entry.file(f => { out.push({ file: f, path: entry.fullPath }); res(); }, res));
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      let batch;
+      do {
+        batch = await new Promise(res => reader.readEntries(res, () => res([])));
+        for (const e of batch) await walk(e, out);
+      } while (batch.length);
+    }
+  }
+  const drop = $('drop');
+  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, () => drop.classList.remove('over')));
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => e.preventDefault());
+  drop.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const items = [...(e.dataTransfer.items || [])];
+    const entries = items.map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+    const out = [];
+    if (entries.length) { for (const en of entries) await walk(en, out); }
+    else for (const f of e.dataTransfer.files) out.push({ file: f, path: '' });
+    addFiles(out);
+  });
+
+  // ---------- Settings ----------
+  $('project').value = settings.project;
+  $('basePath').value = settings.basePath;
+  $('durFmt').value = settings.durFmt;
+  $('project').oninput = (e) => { settings.project = e.target.value; rows.forEach(r => delete r.over.project); render(); };
+  $('basePath').oninput = (e) => { settings.basePath = e.target.value; store.set('basePath', settings.basePath); rows.forEach(r => delete r.over.location); render(); };
+  $('durFmt').onchange = (e) => { settings.durFmt = e.target.value; store.set('durFmt', settings.durFmt); render(); };
+  $('clear').onclick = () => { rows = []; render(); };
+
+  // ---------- Copy ----------
+  const clean = (s) => String(s ?? '').replace(/[\t\r\n]+/g, ' ').trim();
+  function tsv(withHeaders) {
+    const cols = COLS.filter(c => c.on);
+    const lines = rows.map(r => cols.map(c => clean(value(r, c.key))).join('\t'));
+    if (withHeaders) lines.unshift(cols.map(c => c.label).join('\t'));
+    return lines.join('\n');
+  }
+  function copy(withHeaders) {
+    if (!rows.length) { toast('Nothing to copy yet'); return; }
+    const text = tsv(withHeaders);
+    const n = rows.length, msg = `Copied ${n} row${n === 1 ? '' : 's'}`;
+    const fb = $('fallback');
+    const fallback = () => {
+      fb.hidden = false; fb.value = text; fb.focus(); fb.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch {}
+      toast(ok ? msg : 'Press Ctrl+C or ⌘C to copy the selected text');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => { fb.hidden = true; toast(msg); }, fallback);
+    } else fallback();
+  }
+  $('copyRows').onclick = () => copy(false);
+  $('copyHeaders').onclick = () => copy(true);
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+  }
+
+  // ---------- Example rows ----------
+  const ex = (name, relDir, duration, dw, dh, fps, codec, size) => ({
+    id: nextId++, example: true, name, relDir, autoProject: 'Riverside Spring Campaign', size, modified: Date.now(), over: {}, status: 'ok',
+    info: { duration, dw, dh, fps, codec, resolution: `${dw}×${dh}` },
+  });
+  rows = [
+    ex('Riverside_Hero_16x9_v04.mov', 'Web', 94.5, 3840, 2160, 23.976, 'Apple ProRes 422 HQ', 6_820_000_000),
+    ex('Riverside_Cutdown_9x16_v02.mp4', 'Social', 29.9, 1080, 1920, 29.97, 'H.264', 61_200_000),
+    ex('Riverside_Teaser_1x1_v01.mp4', 'Social', 15, 1080, 1080, 29.97, 'H.264', 30_400_000),
+    ex('Riverside_Feed_4x5_v01.mp4', 'Social', 15, 1080, 1350, 29.97, 'H.264', 33_900_000),
+  ];
+
+  renderCols();
+  render();
+})();
+</script>
+</body>
+</html>
