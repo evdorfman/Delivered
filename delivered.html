@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: one working column — setup fields, drop zone, then an editable log table with a copy bar. */
+/* Layout: one working column — batch fields, drop zone, then a wide editable log in Smartsheet column order with a copy bar. */
 :root {
   --bg: #eef1f4;
   --surface: #ffffff;
@@ -17,6 +17,8 @@
   --accent: #0a7466;
   --accent-ink: #ffffff;
   --accent-soft: #dcefeb;
+  --batch: #3d5a80;
+  --batch-soft: #e3eaf3;
   --warn: #9a5b00;
   --warn-soft: #fbeed8;
   --bad: #b3261e;
@@ -27,6 +29,7 @@
   :root:not([data-theme="light"]) {
     --bg: #11161b; --surface: #192027; --ink: #e4e9ee; --muted: #93a0ae; --line: #2c3640;
     --accent: #43c2ad; --accent-ink: #06201c; --accent-soft: #173a35;
+    --batch: #9db8dc; --batch-soft: #1f2b3a;
     --warn: #f0b458; --warn-soft: #3a2c14; --bad: #f2877e;
     color-scheme: dark;
   }
@@ -34,38 +37,46 @@
 :root[data-theme="dark"] {
   --bg: #11161b; --surface: #192027; --ink: #e4e9ee; --muted: #93a0ae; --line: #2c3640;
   --accent: #43c2ad; --accent-ink: #06201c; --accent-soft: #173a35;
+  --batch: #9db8dc; --batch-soft: #1f2b3a;
   --warn: #f0b458; --warn-soft: #3a2c14; --bad: #f2877e;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--font-sans); }
-.wrap { max-width: 1240px; margin: 0 auto; padding-inline: max(16px, 3vw); padding-block: 28px 64px; display: grid; gap: 22px; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: max(16px, 3vw); padding-block: 28px 64px; display: grid; gap: 22px; }
 header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; }
 h1 { margin: 0; font-size: 1.6rem; font-weight: 600; letter-spacing: -0.01em; }
 h1 span { color: var(--accent); }
+h2 { margin: 0; font-size: 1rem; font-weight: 600; }
 header p { margin: 0; color: var(--muted); max-width: 62ch; }
-.label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.hint { font-size: 0.8rem; color: var(--muted); }
 
-.setup { display: grid; align-items: start; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 18px; }
-.field { display: grid; gap: 5px; min-width: 0; }
-.field input, .field select {
-  font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
-  border-radius: 6px; padding: 8px 10px; width: 100%;
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.panel-head .hint { flex: 1 1 280px; }
+.batch { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); align-items: start; gap: 12px 16px; padding: 14px 16px 16px; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field.wide { grid-column: span 2; }
+@media (max-width: 480px) { .field.wide { grid-column: auto; } }
+.field input[type=text], .field input[type=date], .field input[type=number], .field select, textarea {
+  font: inherit; font-size: 0.92rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 6px; padding: 7px 9px; width: 100%;
 }
-.field input:focus-visible, .field select:focus-visible, button:focus-visible, td[contenteditable]:focus-visible {
+.check { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--muted); }
+.check input { accent-color: var(--accent); margin: 0; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, td[contenteditable]:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 1px;
 }
-.hint { font-size: 0.8rem; color: var(--muted); }
 
 .drop {
   border: 1.5px dashed var(--line); border-radius: 10px; background: var(--surface);
-  padding: 26px 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 24px 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
   transition: border-color .15s, background .15s;
 }
 .drop.over { border-color: var(--accent); background: var(--accent-soft); }
 .drop strong { display: block; font-size: 1.05rem; font-weight: 600; }
-.drop .hint { margin-top: 2px; }
 .btns { display: flex; flex-wrap: wrap; gap: 8px; }
 button {
   font: inherit; font-weight: 500; border-radius: 6px; padding: 8px 14px; cursor: pointer;
@@ -74,102 +85,98 @@ button {
 button:hover { border-color: var(--muted); }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 button.primary:hover { filter: brightness(1.07); }
-button.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+button.quiet { border-color: transparent; background: transparent; color: var(--muted); padding-inline: 8px; }
 button.quiet:hover { color: var(--ink); }
 
-.cols { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.chip {
-  display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; padding: 4px 10px;
-  border: 1px solid var(--line); border-radius: 999px; background: var(--surface); cursor: pointer; user-select: none;
-}
-.chip input { accent-color: var(--accent); margin: 0; }
-.chip:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
-
-.log { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
-.log-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 .count { font-weight: 600; }
 .example-note { display: inline-block; margin-left: 8px; font-size: 0.78rem; font-weight: 500; color: var(--warn); background: var(--warn-soft); padding: 2px 8px; border-radius: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.8rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.swatch.sw-file { background: var(--accent); }
+.swatch.sw-batch { background: var(--batch); }
+.swatch.sw-row { border: 1.5px solid var(--muted); }
 .table-scroll { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
-th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
-th { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--bg); position: sticky; top: 0; }
-td.mono { font-family: var(--font-mono); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
-td.wrapcell { white-space: normal; min-width: 200px; max-width: 360px; overflow-wrap: anywhere; }
+table { border-collapse: collapse; font-size: 0.88rem; min-width: 100%; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
+th { font-size: 0.72rem; font-weight: 600; color: var(--ink); background: var(--bg); line-height: 1.3; }
+th small { display: block; font-size: 0.68rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; margin-top: 2px; }
+th.src-file small { color: var(--accent); }
+th.src-batch small { color: var(--batch); }
+th.src-row small { color: var(--muted); }
+th.src-file { box-shadow: inset 0 3px 0 var(--accent); }
+th.src-batch { box-shadow: inset 0 3px 0 var(--batch); }
+td.mono { font-family: var(--font-mono); font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+td.wrapcell { white-space: normal; min-width: 180px; max-width: 340px; overflow-wrap: anywhere; }
+td.src-batch { color: var(--batch); }
 td[contenteditable] { cursor: text; }
 td[contenteditable]:hover { background: var(--bg); }
-td.edited { box-shadow: inset 2px 0 0 var(--accent); }
-td.empty::before { content: attr(data-ph); color: var(--muted); font-style: italic; }
+td.edited { box-shadow: inset 2px 0 0 var(--warn); color: var(--ink); }
+td.empty[data-ph]::before { content: attr(data-ph); color: var(--muted); font-style: italic; }
 tr:last-child td { border-bottom: 0; }
-tr.is-example td { color: var(--muted); }
-.status { width: 10px; padding-right: 0; }
+tr.is-example td { opacity: 0.75; }
+td.status { width: 10px; padding-right: 4px; border-right: 0; }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 6px; }
 .dot.reading { background: var(--muted); animation: pulse 1s infinite; }
 .dot.partial { background: var(--warn); }
 .dot.error { background: var(--bad); }
 @keyframes pulse { 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) { .dot.reading { animation: none; } }
-td.x { width: 1%; }
+td.x { width: 1%; border-right: 0; }
 td.x button { padding: 0 6px; line-height: 1.4; }
 
-.copybar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--line); }
-.copybar .hint { flex: 1 1 260px; }
-#fallback { width: 100%; min-height: 110px; font: 0.8rem/1.4 var(--font-mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+.copybar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.copybar .hint { flex: 1 1 280px; }
+#fallback { width: 100%; min-height: 110px; font: 0.8rem/1.4 var(--font-mono); background: var(--bg); }
 .toast {
   position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
   background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 6px; font-weight: 500; font-size: 0.9rem;
 }
 details { color: var(--muted); font-size: 0.88rem; }
 details summary { cursor: pointer; }
-details ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; max-width: 80ch; }
+details .inner { display: grid; gap: 10px; margin-top: 10px; max-width: 80ch; }
+details ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+#buckets { min-height: 130px; font-family: var(--font-mono); font-size: 0.82rem; max-width: 360px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>Delivered<span>.</span></h1>
-    <p>Add finished deliverables and get their details as rows you can paste into Smartsheet. Files are read on this computer and never uploaded.</p>
+    <p>Add finished deliverables and get rows that paste straight into the Smartsheet tracker. Files are read on this computer and never uploaded.</p>
   </header>
 
-  <section class="setup" aria-label="Setup">
-    <div class="field">
-      <label class="label" for="project">Project name</label>
-      <input id="project" type="text" placeholder="Taken from the folder name if blank">
+  <section class="panel" aria-labelledby="batchTitle">
+    <div class="panel-head">
+      <h2 id="batchTitle">Same for every file in this batch</h2>
+      <span class="hint">Filled into every row. Remembered for next time. Leave a field blank to skip it.</span>
+      <button class="quiet" id="clearBatch" type="button">Clear these fields</button>
     </div>
-    <div class="field">
-      <label class="label" for="basePath">Path of the folder you add from</label>
-      <input id="basePath" type="text" placeholder="/Volumes/Projects/Project X/Deliverables" spellcheck="false">
-      <span class="hint">Browsers can't see full file paths. Mac: right-click the folder, hold Option, choose "Copy … as Pathname". Windows: Shift + right-click, "Copy as path".</span>
-    </div>
-    <div class="field">
-      <label class="label" for="durFmt">Length format</label>
-      <select id="durFmt">
-        <option value="hms">HH:MM:SS</option>
-        <option value="ms">MM:SS</option>
-        <option value="tc">Timecode HH:MM:SS:FF</option>
-        <option value="sec">Seconds</option>
-      </select>
-    </div>
+    <div class="batch" id="batch"></div>
   </section>
 
   <section class="drop" id="drop" aria-label="Add videos">
     <div>
-      <strong>Drop video files or a folder here</strong>
-      <div class="hint">MOV, MP4 and M4V are read in full, including ProRes. Other formats get whatever the browser can read.</div>
+      <strong>Drop deliverables or a folder here</strong>
+      <div class="hint">MOV, MP4 and M4V are read in full, including ProRes. Matching .srt files in the same folder mark "SRT file delivered?".</div>
     </div>
     <div class="btns">
       <button class="primary" id="pickFiles" type="button">Choose files</button>
       <button id="pickFolder" type="button">Choose folder</button>
     </div>
-    <input id="fileInput" type="file" multiple accept="video/*,.mov,.mp4,.m4v,.mxf,.mkv,.avi,.mts,.m2ts,.webm" hidden>
+    <input id="fileInput" type="file" multiple accept="video/*,.mov,.mp4,.m4v,.mxf,.mkv,.avi,.mts,.m2ts,.webm,.srt" hidden>
     <input id="folderInput" type="file" webkitdirectory multiple hidden>
   </section>
 
-  <div class="cols" id="cols" aria-label="Columns to copy"><span class="label">Columns</span></div>
-
-  <section class="log" aria-label="Deliverables">
-    <div class="log-head">
+  <section class="panel" aria-label="Deliverables">
+    <div class="panel-head">
       <div><span class="count" id="count"></span><span class="example-note" id="exampleNote">Example rows. Add your files to replace them.</span></div>
-      <button class="quiet" id="clear" type="button">Clear all</button>
+      <div class="legend">
+        <span><i class="swatch sw-file"></i>Read from file</span>
+        <span><i class="swatch sw-batch"></i>Batch field</span>
+        <span><i class="swatch sw-row"></i>Type per file</span>
+      </div>
+      <button class="quiet" id="clear" type="button">Clear rows</button>
     </div>
     <div class="table-scroll">
       <table>
@@ -180,20 +187,27 @@ details ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; max-w
     <div class="copybar">
       <button class="primary" id="copyRows" type="button">Copy rows</button>
       <button id="copyHeaders" type="button">Copy with headers</button>
-      <span class="hint">In Smartsheet, click the first empty cell in the first column, then paste. Click any cell above to fix it before copying.</span>
+      <span class="hint">In Smartsheet, click the <b>Task Name</b> cell of the first empty row and paste. All 27 columns are copied in sheet order. Click any cell above to fix it first.</span>
       <textarea id="fallback" readonly hidden aria-label="Copied text"></textarea>
     </div>
   </section>
 
   <details>
-    <summary>How each field is found</summary>
-    <ul>
-      <li><b>Project name</b>: what you type above, or else the name of the folder you added.</li>
-      <li><b>File location</b>: the path you paste above plus any subfolders inside it.</li>
-      <li><b>Length, resolution, frame rate, codec</b>: read from the file's header, so large files load instantly.</li>
-      <li><b>Aspect ratio</b>: the display size, corrected for rotated phone footage and anamorphic pixels, matched to the nearest standard ratio (16:9, 9:16, 1:1, 4:5, 2.39:1…).</li>
-      <li>A yellow dot means some details couldn't be read. A red dot means the file couldn't be read. You can type the missing values in.</li>
-    </ul>
+    <summary>How fields are filled, and Length of Video options</summary>
+    <div class="inner">
+      <ul>
+        <li><b>Task Name</b>: the file name without its extension.</li>
+        <li><b>Project Name</b>: the first four parts of the file name (<code>26_LVE_BXPW_BREITIsBack</code>), unless you type one above.</li>
+        <li><b>Aspect Ratio</b>: the display size, corrected for rotated and anamorphic footage, written as 16x9, 9x16, 1x1, 4x5 and so on.</li>
+        <li><b>Quality</b>: 4K when the short side is 2000 pixels or more, HD from 720, otherwise SD.</li>
+        <li><b>File Path</b>: the folder path you paste above plus any subfolders inside it.</li>
+        <li><b>SRT file delivered?</b>: Yes when an .srt with the same name sits beside the video.</li>
+        <li>A yellow dot means some details couldn't be read. A red dot means the file couldn't be read. Type missing values into the table.</li>
+      </ul>
+      <label class="label" for="buckets">Length of Video options</label>
+      <span class="hint">One per line: the dropdown value, then the longest length in whole minutes (rounded) it covers.</span>
+      <textarea id="buckets" spellcheck="false"></textarea>
+    </div>
   </details>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -201,31 +215,11 @@ details ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; max-w
 <script>
 (() => {
   const VIDEO_EXT = /\.(mov|mp4|m4v|mxf|mkv|avi|mts|m2ts|webm|wmv|mpg|mpeg|3gp)$/i;
-  const COLS = [
-    { key: 'project', label: 'Project name', on: true, wrap: true },
-    { key: 'fileName', label: 'File name', on: true, wrap: true },
-    { key: 'location', label: 'File location', on: true, wrap: true, ph: 'add folder path' },
-    { key: 'duration', label: 'Length', on: true, mono: true },
-    { key: 'aspect', label: 'Aspect ratio', on: true, mono: true },
-    { key: 'orientation', label: 'Orientation', on: false },
-    { key: 'resolution', label: 'Resolution', on: false, mono: true },
-    { key: 'fps', label: 'Frame rate', on: false, mono: true },
-    { key: 'codec', label: 'Codec', on: false },
-    { key: 'size', label: 'File size', on: false, mono: true },
-    { key: 'modified', label: 'Date modified', on: false, mono: true },
-  ];
-
   const $ = (id) => document.getElementById(id);
   const store = {
     get(k) { try { return localStorage.getItem('delivered.' + k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem('delivered.' + k, v); } catch {} },
   };
-
-  const settings = { project: '', basePath: store.get('basePath') || '', durFmt: store.get('durFmt') || 'hms' };
-  try { const saved = JSON.parse(store.get('cols') || 'null'); if (saved) COLS.forEach(c => { if (c.key in saved) c.on = saved[c.key]; }); } catch {}
-
-  let rows = [];
-  let nextId = 1;
 
   // ---------- MP4 / QuickTime header parsing ----------
   const fourcc = (dv, o) => String.fromCharCode(dv.getUint8(o), dv.getUint8(o + 1), dv.getUint8(o + 2), dv.getUint8(o + 3));
@@ -377,9 +371,9 @@ details ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; max-w
 
   // ---------- Formatting ----------
   const RATIOS = [
-    [16 / 9, '16:9'], [9 / 16, '9:16'], [1, '1:1'], [4 / 5, '4:5'], [5 / 4, '5:4'], [4 / 3, '4:3'], [3 / 4, '3:4'],
-    [2 / 3, '2:3'], [3 / 2, '3:2'], [2, '2:1'], [1 / 2, '1:2'], [1.85, '1.85:1'], [2.35, '2.35:1'], [2.39, '2.39:1'],
-    [21 / 9, '21:9'], [256 / 135, '1.90:1 (DCI)'],
+    [16 / 9, '16x9'], [9 / 16, '9x16'], [1, '1x1'], [4 / 5, '4x5'], [5 / 4, '5x4'], [4 / 3, '4x3'], [3 / 4, '3x4'],
+    [2 / 3, '2x3'], [3 / 2, '3x2'], [2, '2x1'], [1 / 2, '1x2'], [1.85, '1.85x1'], [2.35, '2.35x1'], [2.39, '2.39x1'],
+    [21 / 9, '21x9'], [256 / 135, '1.90x1'],
   ];
   function aspectLabel(w, h) {
     if (!w || !h) return '';
@@ -387,96 +381,210 @@ details ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; max-w
     let best = null, err = Infinity;
     for (const [v, l] of RATIOS) { const e = Math.abs(r - v) / v; if (e < err) { err = e; best = l; } }
     if (err < 0.012) return best;
-    return r >= 1 ? `${r.toFixed(2)}:1` : `1:${(1 / r).toFixed(2)}`;
+    return r >= 1 ? `${r.toFixed(2)}x1` : `1x${(1 / r).toFixed(2)}`;
   }
-  function orientation(w, h) {
+  function quality(w, h) {
     if (!w || !h) return '';
-    const r = w / h;
-    return Math.abs(r - 1) < 0.02 ? 'Square' : r > 1 ? 'Horizontal' : 'Vertical';
-  }
-  const STD_FPS = [23.976, 24, 25, 29.97, 30, 47.952, 48, 50, 59.94, 60, 119.88, 120];
-  function fpsLabel(f) {
-    if (!f) return '';
-    const s = STD_FPS.find(x => Math.abs(x - f) < 0.015);
-    return String(s ?? Math.round(f * 1000) / 1000);
+    const short = Math.min(w, h);
+    return short >= 2000 ? '4K' : short >= 700 ? 'HD' : 'SD';
   }
   const pad = (n) => String(n).padStart(2, '0');
-  function durLabel(sec, fmt, fps) {
-    if (!sec && sec !== 0) return '';
-    if (fmt === 'sec') return (Math.round(sec * 100) / 100).toString();
-    if (fmt === 'tc' && fps) {
-      const base = Math.round(fps), total = Math.round(sec * fps);
-      const f = total % base, s = Math.floor(total / base);
-      return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}:${pad(f)}`;
-    }
+  function hms(sec) {
+    if (!sec) return '';
     const s = Math.round(sec);
-    if (fmt === 'ms') return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
     return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`;
   }
-  function sizeLabel(b) {
-    if (!b) return '';
-    const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0;
-    while (b >= 1000 && i < u.length - 1) { b /= 1000; i++; }
-    return `${b.toFixed(i >= 3 ? 2 : i ? 1 : 0)} ${u[i]}`;
+  const DEFAULT_BUCKETS = 'Under 1 min | 0\n1-2 min | 2\n3-5 min | 5\n5-10 min | 10\n10+ min | 9999';
+  function bucket(sec) {
+    if (!sec) return '';
+    const mins = sec < 60 ? 0 : Math.round(sec / 60);
+    for (const line of ($('buckets').value || '').split('\n')) {
+      const m = line.match(/^(.*?)\s*\|\s*(\d+)\s*$/);
+      if (m && mins <= Number(m[2])) return m[1].trim();
+    }
+    return '';
   }
-  const dateLabel = (ms) => { if (!ms) return ''; const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
-  function joinPath(base, rel) {
-    base = base.trim().replace(/^["']|["']$/g, '');
-    if (!rel) return base;
-    if (!base) return rel;
+  const usDate = (iso) => { const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(iso || ''); return m ? `${m[2]}/${m[3]}/${m[1].slice(2)}` : (iso || ''); };
+  function joinPath(base, rel, file) {
+    base = (base || '').trim().replace(/^["']|["']$/g, '');
     const sep = base.includes('\\') && !base.includes('/') ? '\\' : '/';
-    return base.replace(/[\\/]+$/, '') + sep + rel.split('/').join(sep);
+    const parts = [base.replace(/[\\/]+$/, ''), ...(rel ? rel.split('/') : []), ...(file ? [file] : [])].filter(Boolean);
+    return parts.join(sep);
   }
+  const stem = (name) => name.replace(/\.[^.]+$/, '');
+  function projectFromName(name) {
+    const t = stem(name).split('_');
+    return t.length >= 5 && /^\d{2}$/.test(t[0]) ? t.slice(0, 4).join('_') : '';
+  }
+
+  // ---------- Fields ----------
+  // Batch fields: typed once, applied to every row, remembered in this browser.
+  const BATCH = [
+    { key: 'request', label: 'Request Name', wide: true },
+    { key: 'project', label: 'Project Name', ph: 'Taken from the file name' },
+    { key: 'status', label: 'Status', def: 'Complete', opts: ['Complete'] },
+    { key: 'assigned', label: 'Assigned To' },
+    { key: 'start', label: 'Actual Start Date', type: 'date' },
+    { key: 'end', label: 'Actual End Date', type: 'date' },
+    { key: 'framePw', label: 'Frame Password' },
+    { key: 'revisions', label: 'Number of Revisions/Cuts', type: 'number' },
+    { key: 'notes', label: 'Notes' },
+    { key: 'platform', label: 'Distribution Platform', opts: ['Other'] },
+    { key: 'delType', label: 'Deliverable Type', opts: ['Review link'] },
+    { key: 'delWorkstream', label: 'Deliverable Workstream', opts: ['LVE (Live)'] },
+    { key: 'workstream', label: 'Workstream', opts: ['LVE (Multimedia)'] },
+    { key: 'bu', label: 'Business Unit', opts: ['Private Wealth (PW)'] },
+    { key: 'eleven', label: 'Eleven Labs Use', def: 'None', opts: ['None'] },
+    { key: 'ai', label: 'Contains AI' },
+    { key: 'green', label: 'Green Screen Use', type: 'check' },
+    { key: 'sheet', label: 'Sheet Name' },
+    { key: 'folder', label: 'File Path: folder you add from', wide: true, ph: '/Volumes/MEDIA/…', mono: true,
+      hint: 'Browsers can\'t see file paths. In Finder, right-click the folder, hold Option, choose "Copy … as Pathname", and paste here.' },
+  ];
+  const BATCH_KEYS = new Set(BATCH.map(b => b.key));
+
+  // Smartsheet columns, in sheet order. src: file = read from file, batch = batch field, row = typed per file.
+  const COLS = [
+    { key: 'task', label: 'Task Name', src: 'file' },
+    { key: 'request', label: 'Request Name', src: 'batch', wrap: true },
+    { key: 'project', label: 'Project Name', src: 'file' },
+    { key: 'deliverable', label: 'Deliverable Name', src: 'row' },
+    { key: 'status', label: 'Status', src: 'batch' },
+    { key: 'assigned', label: 'Assigned To', src: 'batch' },
+    { key: 'start', label: 'Actual Start Date', src: 'batch', mono: true },
+    { key: 'end', label: 'Actual End Date', src: 'batch', mono: true },
+    { key: 'frameLink', label: 'Frame Link', src: 'row', ph: 'paste link' },
+    { key: 'framePw', label: 'Frame Password', src: 'batch' },
+    { key: 'revisions', label: 'Number of Revisions/Cuts', src: 'batch', mono: true },
+    { key: 'notes', label: 'Notes', src: 'batch' },
+    { key: 'platform', label: 'Distribution Platform', src: 'batch' },
+    { key: 'delType', label: 'Deliverable Type', src: 'batch' },
+    { key: 'aspect', label: 'Aspect Ratio', src: 'file', mono: true },
+    { key: 'quality', label: 'Quality', src: 'file' },
+    { key: 'bucket', label: 'Length of Video', src: 'file' },
+    { key: 'length', label: 'Actual Length of Video (HH:MM:SS)', src: 'file', mono: true },
+    { key: 'path', label: 'File Path', src: 'file', wrap: true },
+    { key: 'delWorkstream', label: 'Deliverable Workstream', src: 'batch' },
+    { key: 'workstream', label: 'Workstream', src: 'batch' },
+    { key: 'bu', label: 'Business Unit', src: 'batch' },
+    { key: 'eleven', label: 'Eleven Labs Use', src: 'batch' },
+    { key: 'ai', label: 'Contains AI', src: 'batch' },
+    { key: 'green', label: 'Green Screen Use', src: 'batch' },
+    { key: 'srt', label: 'SRT file delivered?', src: 'file' },
+    { key: 'sheet', label: 'Sheet Name', src: 'batch', wrap: true },
+  ];
+  const SRC_LABEL = { file: 'from file', batch: 'batch', row: 'per file' };
+
+  let batch = {};
+  try { batch = JSON.parse(store.get('batch') || '{}') || {}; } catch { batch = {}; }
+  for (const b of BATCH) if (!(b.key in batch) && b.def) batch[b.key] = b.def;
+  let history = {};
+  try { history = JSON.parse(store.get('history') || '{}') || {}; } catch { history = {}; }
+  let includeFile = store.get('includeFile') === '1';
+  $('buckets').value = store.get('buckets') || DEFAULT_BUCKETS;
+
+  let rows = [];
+  let nextId = 1;
+  const srtKeys = new Set();
 
   function computed(row, key) {
     const i = row.info || {};
     switch (key) {
-      case 'project': return settings.project.trim() || row.autoProject || '';
-      case 'fileName': return row.name;
-      case 'location': return joinPath(settings.basePath, row.relDir);
-      case 'duration': return durLabel(i.duration, settings.durFmt, i.fps);
+      case 'task': return stem(row.name);
+      case 'project': return (batch.project || '').trim() || projectFromName(row.name) || row.autoProject || '';
       case 'aspect': return aspectLabel(i.dw, i.dh);
-      case 'orientation': return orientation(i.dw, i.dh);
-      case 'resolution': return i.resolution || '';
-      case 'fps': return fpsLabel(i.fps);
-      case 'codec': return i.codec || '';
-      case 'size': return sizeLabel(row.size);
-      case 'modified': return dateLabel(row.modified);
+      case 'quality': return quality(i.dw, i.dh);
+      case 'bucket': return bucket(i.duration);
+      case 'length': return hms(i.duration);
+      case 'path': return joinPath(batch.folder, row.relDir, includeFile ? row.name : '');
+      case 'srt': return srtKeys.has(srtKey(row.relDir, row.name)) ? 'Yes' : '';
+      case 'start': case 'end': return usDate(batch[key]);
+      case 'green': return batch.green ? 'true' : '';
     }
-    return '';
+    return BATCH_KEYS.has(key) ? (batch[key] || '') : '';
   }
   const value = (row, key) => (key in row.over ? row.over[key] : computed(row, key));
+  const srtKey = (relDir, name) => (relDir + '/' + stem(name)).toLowerCase();
 
-  // ---------- Rendering ----------
-  function renderCols() {
-    const box = $('cols');
-    box.querySelectorAll('.chip').forEach(n => n.remove());
-    for (const c of COLS) {
-      const lab = document.createElement('label');
-      lab.className = 'chip';
-      const cb = document.createElement('input');
-      cb.type = 'checkbox'; cb.id = 'col-' + c.key; cb.checked = c.on;
-      cb.onchange = () => { c.on = cb.checked; store.set('cols', JSON.stringify(Object.fromEntries(COLS.map(x => [x.key, x.on])))); render(); };
-      lab.append(cb, document.createTextNode(c.label));
-      box.append(lab);
+  // ---------- Batch form ----------
+  function renderBatch() {
+    const box = $('batch');
+    box.innerHTML = '';
+    for (const b of BATCH) {
+      const wrap = document.createElement('div');
+      wrap.className = 'field' + (b.wide ? ' wide' : '');
+      const id = 'b-' + b.key;
+      if (b.type === 'check') {
+        wrap.innerHTML = `<span class="label">${b.label}</span>`;
+        const lab = document.createElement('label'); lab.className = 'check'; lab.style.paddingBlock = '8px';
+        const cb = Object.assign(document.createElement('input'), { type: 'checkbox', id, checked: !!batch[b.key] });
+        cb.onchange = () => setBatch(b.key, cb.checked);
+        lab.append(cb, 'Checked on every row'); wrap.append(lab);
+      } else {
+        const lab = Object.assign(document.createElement('label'), { className: 'label', htmlFor: id, textContent: b.label });
+        const input = Object.assign(document.createElement('input'), { type: b.type || 'text', id, value: batch[b.key] || '', placeholder: b.ph || '' });
+        input.spellcheck = false;
+        if (b.mono) input.style.fontFamily = 'var(--font-mono)';
+        const opts = [...new Set([...(b.opts || []), ...(history[b.key] || [])])];
+        if (opts.length && (!b.type || b.type === 'text')) {
+          const dl = document.createElement('datalist'); dl.id = id + '-opts';
+          for (const o of opts) dl.append(Object.assign(document.createElement('option'), { value: o }));
+          input.setAttribute('list', dl.id); wrap.append(dl);
+        }
+        input.oninput = () => setBatch(b.key, input.value);
+        input.onchange = () => remember(b.key, input.value);
+        wrap.append(lab, input);
+        if (b.hint) wrap.append(Object.assign(document.createElement('span'), { className: 'hint', textContent: b.hint }));
+        if (b.key === 'folder') {
+          const cl = document.createElement('label'); cl.className = 'check';
+          const cb = Object.assign(document.createElement('input'), { type: 'checkbox', id: 'includeFile', checked: includeFile });
+          cb.onchange = () => { includeFile = cb.checked; store.set('includeFile', includeFile ? '1' : '0'); render(); };
+          cl.append(cb, 'End File Path with the file name'); wrap.append(cl);
+        }
+      }
+      box.append(wrap);
     }
   }
+  function setBatch(key, v) {
+    batch[key] = v;
+    store.set('batch', JSON.stringify(batch));
+    rows.forEach(r => delete r.over[key]);
+    render();
+  }
+  function remember(key, v) {
+    v = String(v || '').trim();
+    if (!v || !BATCH.find(b => b.key === key && (!b.type || b.type === 'text'))) return;
+    const h = (history[key] || []).filter(x => x !== v);
+    history[key] = [v, ...h].slice(0, 12);
+    store.set('history', JSON.stringify(history));
+  }
+  $('clearBatch').onclick = () => {
+    batch = {};
+    for (const b of BATCH) if (b.def) batch[b.key] = b.def;
+    store.set('batch', JSON.stringify(batch));
+    renderBatch(); render();
+  };
 
+  // ---------- Table ----------
   function render() {
-    const cols = COLS.filter(c => c.on);
     const real = rows.filter(r => !r.example);
     $('exampleNote').hidden = real.length > 0;
     const n = rows.length;
     $('count').textContent = `${n} deliverable${n === 1 ? '' : 's'}`;
-    $('thead').innerHTML = '';
+
     const htr = document.createElement('tr');
     htr.append(Object.assign(document.createElement('th'), { className: 'status' }));
-    for (const c of cols) htr.append(Object.assign(document.createElement('th'), { textContent: c.label }));
+    for (const c of COLS) {
+      const th = document.createElement('th');
+      th.className = 'src-' + c.src;
+      th.append(c.label, Object.assign(document.createElement('small'), { textContent: SRC_LABEL[c.src] }));
+      htr.append(th);
+    }
     htr.append(document.createElement('th'));
-    $('thead').append(htr);
+    $('thead').replaceChildren(htr);
 
     const tb = $('tbody');
-    tb.innerHTML = '';
+    tb.replaceChildren();
     for (const row of rows) {
       const tr = document.createElement('tr');
       if (row.example) tr.className = 'is-example';
@@ -486,15 +594,15 @@ details ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; max-w
       dot.className = 'dot ' + row.status;
       dot.title = { reading: 'Reading…', ok: 'Read', partial: 'Some details could not be read', error: 'Could not read this file' }[row.status];
       st.append(dot); tr.append(st);
-      for (const c of cols) {
+      for (const c of COLS) {
         const td = document.createElement('td');
-        td.className = [c.mono && 'mono', c.wrap && 'wrapcell', c.key in row.over && 'edited'].filter(Boolean).join(' ');
+        td.className = [c.mono && 'mono', c.wrap && 'wrapcell', 'src-' + c.src, c.key in row.over && 'edited'].filter(Boolean).join(' ');
         td.contentEditable = 'plaintext-only';
         if (td.contentEditable !== 'plaintext-only') td.contentEditable = 'true';
         td.spellcheck = false;
         const v = value(row, c.key);
         td.textContent = v;
-        td.dataset.ph = c.ph || '—';
+        if (c.ph) td.dataset.ph = c.ph;
         td.classList.toggle('empty', !v);
         td.oninput = () => { row.over[c.key] = td.textContent.trim(); td.classList.add('edited'); td.classList.toggle('empty', !td.textContent); };
         td.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); td.blur(); } };
@@ -511,17 +619,23 @@ details ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; max-w
   }
 
   // ---------- Adding files ----------
+  function splitPath(path) {
+    const parts = (path || '').split('/').filter(Boolean);
+    return { top: parts.length > 1 ? parts[0] : '', relDir: parts.length > 2 ? parts.slice(1, -1).join('/') : '' };
+  }
   async function addFiles(list) {
+    let srtCount = 0;
+    for (const { file, path } of list) {
+      if (/\.srt$/i.test(file.name)) { srtKeys.add(srtKey(splitPath(path).relDir, file.name)); srtCount++; }
+    }
     const vids = list.filter(({ file }) => VIDEO_EXT.test(file.name) || (file.type || '').startsWith('video/'));
-    if (!vids.length) { toast('No video files found'); return; }
+    if (!vids.length) { render(); toast(srtCount ? `Added ${srtCount} SRT file${srtCount === 1 ? '' : 's'}` : 'No video files found'); return; }
     rows = rows.filter(r => !r.example);
     const fresh = [];
     for (const { file, path } of vids) {
-      const parts = (path || '').split('/').filter(Boolean);
-      const top = parts.length > 1 ? parts[0] : '';
-      const relDir = parts.length > 2 ? parts.slice(1, -1).join('/') : '';
+      const { top, relDir } = splitPath(path);
       if (rows.some(r => r.name === file.name && r.size === file.size && r.relDir === relDir)) continue;
-      const row = { id: nextId++, name: file.name, size: file.size, modified: file.lastModified, relDir, autoProject: top, over: {}, status: 'reading', info: {} };
+      const row = { id: nextId++, name: file.name, size: file.size, relDir, autoProject: top, over: {}, status: 'reading', info: {} };
       rows.push(row); fresh.push([row, file]);
     }
     render();
@@ -545,11 +659,11 @@ details ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; max-w
       await new Promise(res => entry.file(f => { out.push({ file: f, path: entry.fullPath }); res(); }, res));
     } else if (entry.isDirectory) {
       const reader = entry.createReader();
-      let batch;
+      let batchOfEntries;
       do {
-        batch = await new Promise(res => reader.readEntries(res, () => res([])));
-        for (const e of batch) await walk(e, out);
-      } while (batch.length);
+        batchOfEntries = await new Promise(res => reader.readEntries(res, () => res([])));
+        for (const e of batchOfEntries) await walk(e, out);
+      } while (batchOfEntries.length);
     }
   }
   const drop = $('drop');
@@ -559,33 +673,26 @@ details ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; max-w
   window.addEventListener('drop', (e) => e.preventDefault());
   drop.addEventListener('drop', async (e) => {
     e.preventDefault();
-    const items = [...(e.dataTransfer.items || [])];
-    const entries = items.map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+    const entries = [...(e.dataTransfer.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
     const out = [];
     if (entries.length) { for (const en of entries) await walk(en, out); }
     else for (const f of e.dataTransfer.files) out.push({ file: f, path: '' });
     addFiles(out);
   });
 
-  // ---------- Settings ----------
-  $('project').value = settings.project;
-  $('basePath').value = settings.basePath;
-  $('durFmt').value = settings.durFmt;
-  $('project').oninput = (e) => { settings.project = e.target.value; rows.forEach(r => delete r.over.project); render(); };
-  $('basePath').oninput = (e) => { settings.basePath = e.target.value; store.set('basePath', settings.basePath); rows.forEach(r => delete r.over.location); render(); };
-  $('durFmt').onchange = (e) => { settings.durFmt = e.target.value; store.set('durFmt', settings.durFmt); render(); };
-  $('clear').onclick = () => { rows = []; render(); };
+  $('clear').onclick = () => { rows = []; srtKeys.clear(); render(); };
+  $('buckets').oninput = () => { store.set('buckets', $('buckets').value); rows.forEach(r => delete r.over.bucket); render(); };
 
   // ---------- Copy ----------
   const clean = (s) => String(s ?? '').replace(/[\t\r\n]+/g, ' ').trim();
   function tsv(withHeaders) {
-    const cols = COLS.filter(c => c.on);
-    const lines = rows.map(r => cols.map(c => clean(value(r, c.key))).join('\t'));
-    if (withHeaders) lines.unshift(cols.map(c => c.label).join('\t'));
+    const lines = rows.map(r => COLS.map(c => clean(value(r, c.key))).join('\t'));
+    if (withHeaders) lines.unshift(COLS.map(c => c.label).join('\t'));
     return lines.join('\n');
   }
   function copy(withHeaders) {
     if (!rows.length) { toast('Nothing to copy yet'); return; }
+    for (const b of BATCH) remember(b.key, batch[b.key]);
     const text = tsv(withHeaders);
     const n = rows.length, msg = `Copied ${n} row${n === 1 ? '' : 's'}`;
     const fb = $('fallback');
@@ -608,18 +715,16 @@ details ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; max-w
   }
 
   // ---------- Example rows ----------
-  const ex = (name, relDir, duration, dw, dh, fps, codec, size) => ({
-    id: nextId++, example: true, name, relDir, autoProject: 'Riverside Spring Campaign', size, modified: Date.now(), over: {}, status: 'ok',
+  const ex = (name, relDir, duration, dw, dh, fps, codec) => ({
+    id: nextId++, example: true, name, relDir, autoProject: '', size: 0, over: {}, status: 'ok',
     info: { duration, dw, dh, fps, codec, resolution: `${dw}×${dh}` },
   });
   rows = [
-    ex('Riverside_Hero_16x9_v04.mov', 'Web', 94.5, 3840, 2160, 23.976, 'Apple ProRes 422 HQ', 6_820_000_000),
-    ex('Riverside_Cutdown_9x16_v02.mp4', 'Social', 29.9, 1080, 1920, 29.97, 'H.264', 61_200_000),
-    ex('Riverside_Teaser_1x1_v01.mp4', 'Social', 15, 1080, 1080, 29.97, 'H.264', 30_400_000),
-    ex('Riverside_Feed_4x5_v01.mp4', 'Social', 15, 1080, 1350, 29.97, 'H.264', 33_900_000),
+    ex('26_LVE_ABCD_SampleProject_Sales_260901_v12_DC.mov', 'Exports', 177, 1920, 1080, 23.976, 'Apple ProRes 422 HQ'),
+    ex('26_LVE_ABCD_SampleProject_Social_260901_v04_DC.mp4', 'Exports/Social', 29.9, 1080, 1920, 29.97, 'H.264'),
   ];
 
-  renderCols();
+  renderBatch();
   render();
 })();
 </script>
