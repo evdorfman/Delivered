@@ -6,7 +6,7 @@ Pick one or more video files (or a whole folder) and it reads each file's detail
 
 ## Use it
 
-1. Open `delivered.html` in Chrome, Edge, or Safari (double-click it; nothing to install).
+1. Open https://evdorfman.github.io/Delivered/ (or double-click `delivered.html` to run it offline).
 2. Fill in **Same for every file in this batch**: Request Name, Assigned To, dates, workstreams, Business Unit, etc. These are remembered for next time.
 3. Paste the **folder path** you're adding from so File Path is filled in.
    - Mac: right-click the folder in Finder, hold **Option**, choose **Copy "…" as Pathname**.
